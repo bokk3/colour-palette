@@ -14,7 +14,6 @@ interface UsePaletteReturn {
   generateNewPalette: () => Promise<void>;
   toggleColorLock: (colorId: string) => Promise<void>;
   updateColor: (colorId: string, newColor: Color) => Promise<void>;
-  isGenerating: boolean;
 }
 
 /**
@@ -26,19 +25,12 @@ export function usePalette(): UsePaletteReturn {
   const [palette, setPalette] = useState<Palette>(() => 
     PaletteGenerator.generateFreshPalette()
   );
-  
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   /**
    * Generates a new palette while preserving locked colors
    */
   const generateNewPalette = useCallback(async (): Promise<void> => {
     try {
-      setIsGenerating(true);
-      
-      // Small delay to show loading state
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       const newPalette = PaletteGenerator.regeneratePalette(palette);
       setPalette(newPalette);
     } catch (error) {
@@ -46,8 +38,6 @@ export function usePalette(): UsePaletteReturn {
       // Fallback to fresh palette if regeneration fails
       const fallbackPalette = PaletteGenerator.generateFreshPalette();
       setPalette(fallbackPalette);
-    } finally {
-      setIsGenerating(false);
     }
   }, [palette]);
 
@@ -90,7 +80,6 @@ export function usePalette(): UsePaletteReturn {
     palette,
     generateNewPalette,
     toggleColorLock,
-    updateColor,
-    isGenerating
+    updateColor
   };
 }

@@ -25,7 +25,7 @@ interface PaletteGeneratorProps {
  * - Generate button with visual feedback
  */
 export function PaletteGenerator({ className = '' }: PaletteGeneratorProps): React.JSX.Element {
-  const { palette, generateNewPalette, toggleColorLock, updateColor, isGenerating } = usePalette();
+  const { palette, generateNewPalette, toggleColorLock, updateColor } = usePalette();
   const [selectedColorForTones, setSelectedColorForTones] = useState<Color | null>(null);
   const [showToneSelector, setShowToneSelector] = useState<boolean>(false);
 
@@ -117,28 +117,11 @@ export function PaletteGenerator({ className = '' }: PaletteGeneratorProps): Rea
         <div className="flex flex-col items-center gap-4">
           <button
             onClick={handleGenerate}
-            disabled={isGenerating}
-            className={`
-              px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-medium text-base sm:text-lg
-              transition-all duration-200 min-w-[200px] min-h-[48px]
-              ${isGenerating
-                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 hover:scale-105'
-              }
-              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-              shadow-lg hover:shadow-xl
-            `}
+            className="px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-medium text-base sm:text-lg transition-all duration-200 min-w-[200px] min-h-[48px] bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
             aria-label="Generate new color palette"
             data-testid="generate-button"
           >
-            {isGenerating ? (
-              <span className="flex items-center gap-2">
-                <span className="animate-spin">⟳</span>
-                Generating...
-              </span>
-            ) : (
-              'Generate New Palette'
-            )}
+            Generate New Palette
           </button>
 
           {/* Keyboard shortcut hint */}
@@ -161,7 +144,7 @@ export function PaletteGenerator({ className = '' }: PaletteGeneratorProps): Rea
           
           {/* Instructions */}
           <div className="text-xs text-gray-500 max-w-lg">
-            <p>Click colors to copy • Click lock icons to preserve colors • Click &ldquo;Tones&rdquo; to see variations</p>
+            <p>Click colors to explore tones • Click lock icons to preserve colors</p>
           </div>
         </div>
       </div>
@@ -187,35 +170,45 @@ export function PaletteGenerator({ className = '' }: PaletteGeneratorProps): Rea
               <div
                 className="w-full h-full cursor-pointer transition-all duration-200 hover:scale-105 hover:z-10 relative"
                 style={{ backgroundColor: color.hex }}
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(color.hex);
-                  } catch (error) {
-                    console.error('Failed to copy color:', error);
+                onClick={(e) => {
+                  // Only open tone picker if not clicking on lock button
+                  const target = e.target as HTMLElement;
+                  if (!target.closest('button[aria-label*="lock"]')) {
+                    handleOpenToneSelector(color);
                   }
                 }}
                 role="button"
                 tabIndex={0}
-                aria-label={`Copy color ${color.hex} to clipboard`}
+                aria-label={`Explore tones for ${color.hex}`}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    navigator.clipboard.writeText(color.hex);
+                    handleOpenToneSelector(color);
                   }
                 }}
                 data-testid="color-card"
               >
-                {/* Color hex value */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span
-                    className="text-lg font-mono font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-3 py-2 rounded"
+                {/* Always visible color hex value at bottom */}
+                <div className="absolute bottom-4 left-4 right-4 text-center">
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await navigator.clipboard.writeText(color.hex);
+                      } catch (error) {
+                        console.error('Failed to copy color:', error);
+                      }
+                    }}
+                    className="text-lg font-mono font-medium px-3 py-2 rounded inline-block hover:scale-105 transition-transform duration-200"
                     style={{ 
                       color: color.hsl.l > 50 ? '#000000' : '#ffffff',
                       backgroundColor: color.hsl.l > 50 ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)'
                     }}
+                    title="Click to copy color code"
+                    aria-label={`Copy ${color.hex} to clipboard`}
                   >
                     {color.hex}
-                  </span>
+                  </button>
                 </div>
 
                 {/* Lock button */}
@@ -232,20 +225,6 @@ export function PaletteGenerator({ className = '' }: PaletteGeneratorProps): Rea
                   <span className="text-2xl leading-none">
                     {color.isLocked ? '🔒' : '🔓'}
                   </span>
-                </button>
-
-                {/* Tone exploration button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenToneSelector(color);
-                  }}
-                  className="absolute bottom-4 right-4 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-3 py-2 rounded hover:bg-black hover:bg-opacity-20 font-medium"
-                  style={{ color: color.hsl.l > 50 ? '#000000' : '#ffffff' }}
-                  aria-label={`Explore tones for ${color.hex}`}
-                  title="Explore tones"
-                >
-                  Tones
                 </button>
 
                 {/* Lock indicator */}
@@ -267,23 +246,6 @@ export function PaletteGenerator({ className = '' }: PaletteGeneratorProps): Rea
           isVisible={showToneSelector}
         />
       )}
-
-      {/* Loading Overlay */}
-      {isGenerating && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-40"
-          aria-hidden="true"
-        >
-          <div className="bg-white rounded-lg p-6 shadow-xl">
-            <div className="flex items-center gap-3">
-              <span className="animate-spin text-2xl">⟳</span>
-              <span className="text-lg font-medium text-gray-900">
-                Generating palette...
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -296,7 +258,7 @@ export function CompactPaletteGenerator({
 }: { 
   readonly className?: string; 
 }): React.JSX.Element {
-  const { palette, generateNewPalette, toggleColorLock, isGenerating } = usePalette();
+  const { palette, generateNewPalette, toggleColorLock } = usePalette();
 
   const handleGenerate = useCallback(async (): Promise<void> => {
     try {
@@ -338,17 +300,9 @@ export function CompactPaletteGenerator({
       {/* Compact Generate Button */}
       <button
         onClick={handleGenerate}
-        disabled={isGenerating}
-        className={`
-          w-full px-4 py-2 rounded font-medium text-sm
-          ${isGenerating
-            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
-          }
-          transition-colors
-        `}
+        className="w-full px-4 py-2 rounded font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors"
       >
-        {isGenerating ? 'Generating...' : 'Generate (Space)'}
+        Generate (Space)
       </button>
     </div>
   );
