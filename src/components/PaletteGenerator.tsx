@@ -113,55 +113,148 @@ export function PaletteGenerator({ className = '' }: PaletteGeneratorProps): Rea
           </p>
         </div>
 
-      {/* Generate Button */}
-      <div className="flex flex-col items-center gap-4">
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className={`
-            px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-medium text-base sm:text-lg
-            transition-all duration-200 min-w-[200px] min-h-[48px]
-            ${isGenerating
-              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 hover:scale-105'
-            }
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-            shadow-lg hover:shadow-xl
-          `}
-          aria-label="Generate new color palette"
-          data-testid="generate-button"
-        >
-          {isGenerating ? (
-            <span className="flex items-center gap-2">
-              <span className="animate-spin">⟳</span>
-              Generating...
-            </span>
-          ) : (
-            'Generate New Palette'
-          )}
-        </button>
+        {/* Generate Button */}
+        <div className="flex flex-col items-center gap-4">
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className={`
+              px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-medium text-base sm:text-lg
+              transition-all duration-200 min-w-[200px] min-h-[48px]
+              ${isGenerating
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 hover:scale-105'
+              }
+              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+              shadow-lg hover:shadow-xl
+            `}
+            aria-label="Generate new color palette"
+            data-testid="generate-button"
+          >
+            {isGenerating ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin">⟳</span>
+                Generating...
+              </span>
+            ) : (
+              'Generate New Palette'
+            )}
+          </button>
 
-        {/* Keyboard shortcut hint */}
-        <p className="text-xs sm:text-sm text-gray-500 text-center">
-          Press <kbd className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">Space</kbd> to generate
-        </p>
+          {/* Keyboard shortcut hint */}
+          <p className="text-xs sm:text-sm text-gray-500 text-center">
+            Press <kbd className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">Space</kbd> to generate
+          </p>
+        </div>
+
+        {/* Palette Info */}
+        <div className="text-center space-y-2">
+          <div className="flex flex-wrap justify-center gap-4 text-xs sm:text-sm text-gray-600">
+            <span>
+              Locked: {palette.colors.filter(c => c.isLocked).length}/5
+            </span>
+            <span>•</span>
+            <span>
+              Generated: {palette.createdAt.toLocaleTimeString()}
+            </span>
+          </div>
+          
+          {/* Instructions */}
+          <div className="text-xs text-gray-500 max-w-lg">
+            <p>Click colors to copy • Click lock icons to preserve colors • Click &ldquo;Tones&rdquo; to see variations</p>
+          </div>
+        </div>
       </div>
 
-      {/* Palette Info */}
-      <div className="text-center space-y-2">
-        <div className="flex flex-wrap justify-center gap-4 text-xs sm:text-sm text-gray-600">
-          <span>
-            Locked: {palette.colors.filter(c => c.isLocked).length}/5
-          </span>
-          <span>•</span>
-          <span>
-            Generated: {palette.createdAt.toLocaleTimeString()}
-          </span>
-        </div>
-        
-        {/* Instructions */}
-        <div className="text-xs text-gray-500 max-w-lg">
-          <p>Click colors to copy • Click lock icons to preserve colors • Click &ldquo;Tones&rdquo; to see variations</p>
+      {/* Color Strip - Bottom 2/3 of viewport - Tall Rectangles */}
+      <div 
+        className="h-2/3 w-full"
+        data-testid="palette-container"
+      >
+        <div
+          className="flex w-full h-full"
+          data-testid="color-grid"
+          role="grid"
+          aria-label="Color palette strip"
+        >
+          {palette.colors.map((color, index) => (
+            <div
+              key={color.id}
+              className="relative flex-1 group"
+              role="gridcell"
+              aria-label={`Color ${index + 1}: ${color.hex}`}
+            >
+              <div
+                className="w-full h-full cursor-pointer transition-all duration-200 hover:scale-105 hover:z-10 relative"
+                style={{ backgroundColor: color.hex }}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(color.hex);
+                  } catch (error) {
+                    console.error('Failed to copy color:', error);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Copy color ${color.hex} to clipboard`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigator.clipboard.writeText(color.hex);
+                  }
+                }}
+                data-testid="color-card"
+              >
+                {/* Color hex value */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span
+                    className="text-lg font-mono font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-3 py-2 rounded"
+                    style={{ 
+                      color: color.hsl.l > 50 ? '#000000' : '#ffffff',
+                      backgroundColor: color.hsl.l > 50 ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)'
+                    }}
+                  >
+                    {color.hex}
+                  </span>
+                </div>
+
+                {/* Lock button */}
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    await handleColorLockToggle(color.id);
+                  }}
+                  className="absolute top-4 right-4 p-2 rounded transition-all duration-200 opacity-0 group-hover:opacity-100 hover:bg-black hover:bg-opacity-20"
+                  style={{ color: color.hsl.l > 50 ? '#000000' : '#ffffff' }}
+                  aria-label={color.isLocked ? 'Unlock color' : 'Lock color'}
+                  title={color.isLocked ? 'Unlock color' : 'Lock color'}
+                >
+                  <span className="text-2xl leading-none">
+                    {color.isLocked ? '🔒' : '🔓'}
+                  </span>
+                </button>
+
+                {/* Tone exploration button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenToneSelector(color);
+                  }}
+                  className="absolute bottom-4 right-4 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-3 py-2 rounded hover:bg-black hover:bg-opacity-20 font-medium"
+                  style={{ color: color.hsl.l > 50 ? '#000000' : '#ffffff' }}
+                  aria-label={`Explore tones for ${color.hex}`}
+                  title="Explore tones"
+                >
+                  Tones
+                </button>
+
+                {/* Lock indicator */}
+                {color.isLocked && (
+                  <div className="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
